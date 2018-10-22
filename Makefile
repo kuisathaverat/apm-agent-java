@@ -1,3 +1,7 @@
+.PHONY: build
+build:
+	go build -a -v -race $(find . -type f -name '*.go' 2>/dev/null) 
+	
 .PHONY: check
 check: precheck test
 
