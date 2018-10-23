@@ -10,17 +10,10 @@ go get -v -u github.com/AlekSi/gocov-xml
 
 go get -v -t ./...
 
-export COV_DIR="build/coverage"
+export COV_FILE="build/coverage.cov"
 export OUT_FILE="build/test-report.out"
 mkdir -p build
-go test -race ${GOPACKAGES} -v 2>&1 | tee ${OUT_FILE}
+go test -race ./... -v -coverprofile="${COV_FILE}" 2>&1 | tee ${OUT_FILE}
 cat ${OUT_FILE} | go-junit-report > build/apm-agent-go-junit.xml
-for i in "full.cov" "integration.cov" "system.cov" "unit.cov"
-do
-  name=$(basename ${i} .cov)
-  [ -f "${COV_DIR}/${i}" ] && gocov convert "${COV_DIR}/${i}" | gocov-html > build/coverage-${name}-report.html
-  [ -f "${COV_DIR}/${i}" ] && gocov convert "${COV_DIR}/${i}" | gocov-xml > build/coverage-${name}-report.xml
-done
-exit 0
-
-make test | $GOPATH/bin/go-junit-report &gt; apm-agent-go-junit.xml
+gocov convert "${COV_FILE}" | gocov-html > build/coverage-apm-agent-go-report.html
+gocov convert "${COV_FILE}" | gocov-xml > build/coverage-apm-agent-go-report.xml

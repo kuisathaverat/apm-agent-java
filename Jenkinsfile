@@ -47,48 +47,48 @@ pipeline {
       }
       
       steps {
-          withEnvWrapper() {
-              dir("${BASE_DIR}"){
-                script{
-                  if(!branch_specifier){
-                    echo "Checkout SCM ${GIT_BRANCH} - ${GIT_COMMIT}"
-                    checkout scm
-                  } else {
-                    echo "Checkout ${branch_specifier}"
-                    checkout([$class: 'GitSCM', branches: [[name: "${branch_specifier}"]], 
-                      doGenerateSubmoduleConfigurations: false, 
-                      extensions: [], 
-                      submoduleCfg: [], 
-                      userRemoteConfigs: [[credentialsId: "${JOB_GIT_CREDENTIALS}", 
-                      url: "${GIT_URL}"]]])
-                  }
-                  env.JOB_GIT_COMMIT = getGitCommitSha()
-                  env.JOB_GIT_URL = "${GIT_URL}"
-                  
-                  github_enterprise_constructor()
-                  
-                  on_change{
-                    echo "build cause a change (commit or PR)"
-                  }
-                  
-                  on_commit {
-                    echo "build cause a commit"
-                  }
-                  
-                  on_merge {
-                    echo "build cause a merge"
-                  }
-                  
-                  on_pull_request {
-                    echo "build cause PR"
-                  }
-
-                  sh("git tag -a '${BUILD_TAG}' -m 'Jenkins TAG ${RUN_DISPLAY_URL}'")
-                  sh("git push git@github.com:${ORG_NAME}/${REPO_NAME}.git --tags")
+        withEnvWrapper() {
+            dir("${BASE_DIR}"){
+              script{
+                if(!branch_specifier){
+                  echo "Checkout SCM ${GIT_BRANCH} - ${GIT_COMMIT}"
+                  checkout scm
+                } else {
+                  echo "Checkout ${branch_specifier}"
+                  checkout([$class: 'GitSCM', branches: [[name: "${branch_specifier}"]], 
+                    doGenerateSubmoduleConfigurations: false, 
+                    extensions: [], 
+                    submoduleCfg: [], 
+                    userRemoteConfigs: [[credentialsId: "${JOB_GIT_CREDENTIALS}", 
+                    url: "${GIT_URL}"]]])
                 }
+                env.JOB_GIT_COMMIT = getGitCommitSha()
+                env.JOB_GIT_URL = "${GIT_URL}"
+                
+                github_enterprise_constructor()
+                
+                on_change{
+                  echo "build cause a change (commit or PR)"
+                }
+                
+                on_commit {
+                  echo "build cause a commit"
+                }
+                
+                on_merge {
+                  echo "build cause a merge"
+                }
+                
+                on_pull_request {
+                  echo "build cause PR"
+                }
+
+                sh("git tag -a '${BUILD_TAG}' -m 'Jenkins TAG ${RUN_DISPLAY_URL}'")
+                sh("git push git@github.com:${ORG_NAME}/${REPO_NAME}.git --tags")
               }
-              stash allowEmpty: true, name: 'source'
-          }
+            }
+            stash allowEmpty: true, name: 'source'
+        }
       }
     }
     
@@ -97,6 +97,10 @@ pipeline {
     */
     stage('build') { 
       agent { label 'linux' }
+      environment {
+        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+        GOPATH = "${env.WORKSPACE}"
+      }
       
       when { 
         beforeAgent true
@@ -111,6 +115,130 @@ pipeline {
             """
           }
         }
+      }
+    }
+    stage('test') { 
+      agent { label 'linux' }
+      environment {
+        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+        GOPATH = "${env.WORKSPACE}"
+      }
+      
+      when { 
+        beforeAgent true
+        environment name: 'test_ci', value: 'true' 
+      }
+      steps {
+        withEnvWrapper() {
+          unstash 'source'
+          dir("${BASE_DIR}"){    
+            sh """#!/bin/bash
+            ./scripts/jenkins/test.sh
+            """
+          }
+        }
+      }
+      post { 
+        always { 
+          publishHTML(target: [
+              allowMissing: true, 
+              keepAll: true,
+              reportDir: "${BASE_DIR}/build", 
+              reportFiles: 'coverage-*-report.html', 
+              reportName: 'coverage report', 
+              reportTitles: 'Coverage'])
+          publishCoverage(adapters: [
+            coberturaAdapter("${BASE_DIR}/build/coverage-*-report.xml")], 
+            sourceFileResolver: sourceFiles('STORE_ALL_BUILD'))
+          cobertura(autoUpdateHealth: false, 
+            autoUpdateStability: false, 
+            coberturaReportFile: "${BASE_DIR}/build/coverage-*-report.xml", 
+            conditionalCoverageTargets: '70, 0, 0', 
+            failNoReports: false, 
+            failUnhealthy: false, 
+            failUnstable: false, 
+            lineCoverageTargets: '80, 0, 0', 
+            maxNumberOfBuilds: 0, 
+            methodCoverageTargets: '80, 0, 0', 
+            onlyStable: false, 
+            sourceEncoding: 'ASCII', 
+            zoomCoverageChart: false)
+          archiveArtifacts(allowEmptyArchive: true, 
+            artifacts: "${BASE_DIR}/build/junit-*.xml", 
+            onlyIfSuccessful: false)
+          junit(allowEmptyResults: true, 
+            keepLongStdio: true, 
+            testResults: "${BASE_DIR}/build/junit-*.xml")
+        }
+      }
+    }
+    stage('Benchmarks') { 
+      agent { label 'linux' }
+      environment {
+        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+        GOPATH = "${env.WORKSPACE}"
+      }
+      
+      when { 
+        beforeAgent true
+        allOf { 
+          branch 'master';
+          environment name: 'bench_ci', value: 'true' 
+        }
+      }
+      steps {
+        withEnvWrapper() {
+          unstash 'source'
+          dir("${BASE_DIR}"){    
+            sh """#!/bin/bash
+            ./scripts/jenkins/bench.sh
+            """
+          }
+        }
+      }
+    }
+  }
+  post { 
+    success { 
+      echo 'Success Post Actions'
+      updateGithubCommitStatus(
+        repoUrl: "${JOB_GIT_URL}",
+        commitSha: "${JOB_GIT_COMMIT}",
+        message: 'Build result SUCCESS.'
+      )
+    }
+    aborted { 
+      echo 'Aborted Post Actions'
+      setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
+        commitSha: "${JOB_GIT_COMMIT}",
+        message: 'Build result ABORTED.',
+        state: "error")
+    }
+    failure { 
+      echo 'Failure Post Actions'
+      //step([$class: 'Mailer', notifyEveryUnstableBuild: true, recipients: "${NOTIFY_TO}", sendToIndividuals: false])
+      setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
+        commitSha: "${JOB_GIT_COMMIT}",
+        message: 'Build result FAILURE.',
+        state: "failure")
+    }
+    unstable { 
+      echo 'Unstable Post Actions'
+      setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
+        commitSha: "${JOB_GIT_COMMIT}",
+        message: 'Build result UNSTABLE.',
+        state: "error")
+    }
+    always { 
+      echo 'Post Actions'
+      dir('cleanTags'){
+        unstash 'source'
+        sh("""
+        git fetch --tags
+        git tag -d '${BUILD_TAG}'
+        git push git@github.com:${ORG_NAME}/${REPO_NAME}.git --tags
+        """)
+        deleteDir()
       }
     }
   }
