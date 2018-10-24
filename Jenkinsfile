@@ -55,7 +55,7 @@ pipeline {
                 sh "export"
                 
                 if(!branch_specifier){
-                  echo "Checkout SCM ${BRANCH_NAME} - ${CHANGE_ID}"
+                  echo "Checkout SCM ${GIT_BRANCH}"
                   checkout scm
                 } else {
                   echo "Checkout ${branch_specifier}"
