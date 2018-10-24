@@ -12,8 +12,13 @@ go get -v -t ./...
 
 export COV_FILE="build/coverage.cov"
 export OUT_FILE="build/test-report.out"
-mkdir -p build
-go test -race ./... -v -coverprofile="${COV_FILE}" 2>&1 | tee ${OUT_FILE}
+mkdir -p build/codecov
+
+./scripts/docker-compose-testing up -d --build
+./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage > ${COV_FILE}
 cat ${OUT_FILE} | go-junit-report > build/apm-agent-go-junit.xml
 gocov convert "${COV_FILE}" | gocov-html > build/coverage-apm-agent-go-report.html
 gocov convert "${COV_FILE}" | gocov-xml > build/coverage-apm-agent-go-report.xml
+
+cd build/codecov && bash <(curl -s https://codecov.io/bash)
+

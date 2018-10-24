@@ -1,3 +1,5 @@
+#!/usr/bin/env groovy
+
 library identifier: 'apm@master', 
 retriever: modernSCM(
   [$class: 'GitSCMSource', 
@@ -197,8 +199,45 @@ pipeline {
         }
       }
     }
+    stage('Docker tests') { 
+      agent { label 'linux && docker' }
+      environment {
+        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+        GOPATH = "${env.WORKSPACE}"
+      }
+      
+      when { 
+        beforeAgent true
+        allOf { 
+          branch 'master';
+          environment name: 'integration_test_ci', value: 'true' 
+        }
+      }
+      steps {
+        withEnvWrapper() {
+          unstash 'source'
+          dir("${BASE_DIR}"){    
+            sh """#!/bin/bash
+            ./scripts/jenkins/docker-test.sh
+            """
+          }
+        }
+      }
+    }
   }
-  post { 
+  post {
+    always { 
+      echo 'Post Actions'
+      dir('cleanTags'){
+        unstash 'source'
+        sh("""
+        git fetch --tags
+        git tag -d '${BUILD_TAG}'
+        git push git@github.com:${ORG_NAME}/${REPO_NAME}.git --tags
+        """)
+        deleteDir()
+      }
+    }
     success { 
       echo 'Success Post Actions'
       updateGithubCommitStatus(
@@ -228,18 +267,6 @@ pipeline {
         commitSha: "${JOB_GIT_COMMIT}",
         message: 'Build result UNSTABLE.',
         state: "error")
-    }
-    always { 
-      echo 'Post Actions'
-      dir('cleanTags'){
-        unstash 'source'
-        sh("""
-        git fetch --tags
-        git tag -d '${BUILD_TAG}'
-        git push git@github.com:${ORG_NAME}/${REPO_NAME}.git --tags
-        """)
-        deleteDir()
-      }
     }
   }
 }
