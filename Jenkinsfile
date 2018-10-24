@@ -23,6 +23,7 @@ pipeline {
     timestamps()
     preserveStashes()
     ansiColor('xterm')
+    skipDefaultCheckout(true)
   }
   parameters {
     string(name: 'branch_specifier', defaultValue: "", description: "the Git branch specifier to build (<branchName>, <tagName>, <commitId>, etc.)")
@@ -69,6 +70,8 @@ pipeline {
                 
                 github_enterprise_constructor()
                 
+                currentBuild.changeSets.each{ it -> println it}
+
                 on_change{
                   echo "build cause a change (commit or PR)"
                 }
@@ -113,7 +116,7 @@ pipeline {
           unstash 'source'
           dir("${BASE_DIR}"){    
             sh """#!/bin/bash
-            make build
+            make install check
             """
           }
         }
