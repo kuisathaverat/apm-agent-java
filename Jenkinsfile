@@ -23,7 +23,6 @@ pipeline {
     timestamps()
     preserveStashes()
     ansiColor('xterm')
-    skipDefaultCheckout(true)
   }
   parameters {
     string(name: 'branch_specifier', defaultValue: "", description: "the Git branch specifier to build (<branchName>, <tagName>, <commitId>, etc.)")
