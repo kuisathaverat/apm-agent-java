@@ -70,7 +70,7 @@ pipeline {
                 
                 github_enterprise_constructor()
                 
-                currentBuild.changeSets.each{ it -> println it}
+                currentBuild.changeSets.each{ change -> println change}
 
                 on_change{
                   echo "build cause a change (commit or PR)"
