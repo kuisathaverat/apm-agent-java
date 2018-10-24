@@ -53,6 +53,8 @@ pipeline {
         withEnvWrapper() {
             dir("${BASE_DIR}"){
               script{
+                sh "export"
+                
                 if(!branch_specifier){
                   echo "Checkout SCM ${BRANCH_NAME} - ${CHANGE_ID}"
                   checkout scm
