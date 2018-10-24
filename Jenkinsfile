@@ -243,14 +243,14 @@ pipeline {
       updateGithubCommitStatus(
         repoUrl: "${JOB_GIT_URL}",
         commitSha: "${JOB_GIT_COMMIT}",
-        message: 'Build result SUCCESS.'
+        message: "## :green_heart: Build Succeeded\n [${JOB_NAME}](${BUILD_URL})",
       )
     }
     aborted { 
       echo 'Aborted Post Actions'
       setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
         commitSha: "${JOB_GIT_COMMIT}",
-        message: 'Build result ABORTED.',
+        message: "## :broken_heart: Build Aborted\n [${JOB_NAME}](${BUILD_URL})",
         state: "error")
     }
     failure { 
@@ -258,14 +258,14 @@ pipeline {
       //step([$class: 'Mailer', notifyEveryUnstableBuild: true, recipients: "${NOTIFY_TO}", sendToIndividuals: false])
       setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
         commitSha: "${JOB_GIT_COMMIT}",
-        message: 'Build result FAILURE.',
+        message: "## :broken_heart: Build Failed\n [${JOB_NAME}](${BUILD_URL})",
         state: "failure")
     }
     unstable { 
       echo 'Unstable Post Actions'
       setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
         commitSha: "${JOB_GIT_COMMIT}",
-        message: 'Build result UNSTABLE.',
+        message: "## ::yellow_heart: Build Unstable\n [${JOB_NAME}](${BUILD_URL})",
         state: "error")
     }
   }
