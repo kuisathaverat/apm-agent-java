@@ -54,7 +54,7 @@ pipeline {
             dir("${BASE_DIR}"){
               script{
                 if(!branch_specifier){
-                  echo "Checkout SCM ${GIT_BRANCH} - ${GIT_COMMIT}"
+                  echo "Checkout SCM ${BRANCH_NAME} - ${GIT_COMMIT}"
                   checkout scm
                 } else {
                   echo "Checkout ${branch_specifier}"
