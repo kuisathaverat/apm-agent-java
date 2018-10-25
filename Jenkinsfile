@@ -50,52 +50,52 @@ pipeline {
       
       steps {
         withEnvWrapper() {
-            dir("${BASE_DIR}"){
-              script{
-                sh "export"
-                
-                if(!branch_specifier){
-                  echo "Checkout SCM ${GIT_BRANCH}"
-                  checkout scm
-                } else {
-                  echo "Checkout ${branch_specifier}"
-                  checkout([$class: 'GitSCM', branches: [[name: "${branch_specifier}"]], 
-                    doGenerateSubmoduleConfigurations: false, 
-                    extensions: [], 
-                    submoduleCfg: [], 
-                    userRemoteConfigs: [[credentialsId: "${JOB_GIT_CREDENTIALS}", 
-                    url: "${GIT_URL}"]]])
-                }
-                env.JOB_GIT_COMMIT = getGitCommitSha()
-                env.JOB_GIT_URL = "${GIT_URL}"
-                
-                github_enterprise_constructor()
-                
-                currentBuild.changeSets.each{ change -> println change}
-
-                on_change{
-                  echo "build cause a change (commit or PR)"
-                }
-                
-                on_commit {
-                  echo "build cause a commit"
-                }
-                
-                on_merge {
-                  echo "build cause a merge"
-                }
-                
-                on_pull_request {
-                  echo "build cause PR"
-                }
-
-                sh("git tag -a '${BUILD_TAG}' -m 'Jenkins TAG ${RUN_DISPLAY_URL}'")
-                sh("git push git@github.com:${ORG_NAME}/${REPO_NAME}.git --tags")
-
-                sh "export"
+          dir("${BASE_DIR}"){
+            script{
+              sh "export"
+              
+              if(!branch_specifier){
+                echo "Checkout SCM ${GIT_BRANCH}"
+                checkout scm
+              } else {
+                echo "Checkout ${branch_specifier}"
+                checkout([$class: 'GitSCM', branches: [[name: "${branch_specifier}"]], 
+                  doGenerateSubmoduleConfigurations: false, 
+                  extensions: [], 
+                  submoduleCfg: [], 
+                  userRemoteConfigs: [[credentialsId: "${JOB_GIT_CREDENTIALS}", 
+                  url: "${GIT_URL}"]]])
               }
+              env.JOB_GIT_COMMIT = getGitCommitSha()
+              env.JOB_GIT_URL = "${GIT_URL}"
+              
+              github_enterprise_constructor()
+              
+              currentBuild.changeSets.each{ change -> println change}
+
+              on_change{
+                echo "build cause a change (commit or PR)"
+              }
+              
+              on_commit {
+                echo "build cause a commit"
+              }
+              
+              on_merge {
+                echo "build cause a merge"
+              }
+              
+              on_pull_request {
+                echo "build cause PR"
+              }
+
+              sh("git tag -a '${BUILD_TAG}' -m 'Jenkins TAG ${RUN_DISPLAY_URL}'")
+              sh("git push git@github.com:${ORG_NAME}/${REPO_NAME}.git --tags")
+
+              sh "export"
             }
-            stash allowEmpty: true, name: 'source'
+          }
+          stash allowEmpty: true, name: 'source'
         }
       }
     }
@@ -119,7 +119,7 @@ pipeline {
           unstash 'source'
           dir("${BASE_DIR}"){    
             sh """#!/bin/bash
-            make install check
+            make install
             """
           }
         }
@@ -246,33 +246,49 @@ pipeline {
     }
     success { 
       echo 'Success Post Actions'
-      updateGithubCommitStatus(
-        repoUrl: "${JOB_GIT_URL}",
-        commitSha: "${JOB_GIT_COMMIT}",
-        message: "## :green_heart: Build Succeeded\n [${JOB_NAME}](${BUILD_URL})",
-      )
+      script {
+        if(env?.CHANGE_ID){
+          updateGithubCommitStatus(
+            repoUrl: "${JOB_GIT_URL}",
+            commitSha: "${JOB_GIT_COMMIT}",
+            message: "## :green_heart: Build Succeeded\n [${JOB_NAME}](${BUILD_URL})",
+          )
+        }
+      }
     }
     aborted { 
       echo 'Aborted Post Actions'
-      setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
-        commitSha: "${JOB_GIT_COMMIT}",
-        message: "## :broken_heart: Build Aborted\n [${JOB_NAME}](${BUILD_URL})",
-        state: "error")
+      script {
+        if(env?.CHANGE_ID){
+          setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
+            commitSha: "${JOB_GIT_COMMIT}",
+            message: "## :broken_heart: Build Aborted\n [${JOB_NAME}](${BUILD_URL})",
+            state: "error")
+        }
+      }
     }
     failure { 
       echo 'Failure Post Actions'
       //step([$class: 'Mailer', notifyEveryUnstableBuild: true, recipients: "${NOTIFY_TO}", sendToIndividuals: false])
-      setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
-        commitSha: "${JOB_GIT_COMMIT}",
-        message: "## :broken_heart: Build Failed\n [${JOB_NAME}](${BUILD_URL})",
-        state: "failure")
+      script {
+        if(env?.CHANGE_ID){
+          setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
+            commitSha: "${JOB_GIT_COMMIT}",
+            message: "## :broken_heart: Build Failed\n [${JOB_NAME}](${BUILD_URL})",
+            state: "failure")
+        }
+      }
     }
     unstable { 
       echo 'Unstable Post Actions'
-      setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
-        commitSha: "${JOB_GIT_COMMIT}",
-        message: "## ::yellow_heart: Build Unstable\n [${JOB_NAME}](${BUILD_URL})",
-        state: "error")
+      script {
+        if(env?.CHANGE_ID){
+          setGithubCommitStatus(repoUrl: "${JOB_GIT_URL}",
+            commitSha: "${JOB_GIT_COMMIT}",
+            message: "## ::yellow_heart: Build Unstable\n [${JOB_NAME}](${BUILD_URL})",
+            state: "error")
+        }
+      }
     }
   }
 }
