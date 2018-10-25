@@ -61,8 +61,8 @@ pipeline {
                 echo "Checkout ${branch_specifier}"
                 checkout([$class: 'GitSCM', branches: [[name: "${branch_specifier}"]], 
                   doGenerateSubmoduleConfigurations: false, 
-                  extensions: [], 
-                  submoduleCfg: [], 
+                  extensions: [],
+                  submoduleCfg: [],
                   userRemoteConfigs: [[credentialsId: "${JOB_GIT_CREDENTIALS}", 
                   url: "${GIT_URL}"]]])
               }
@@ -144,6 +144,7 @@ pipeline {
             sh """#!/bin/bash
             ./scripts/jenkins/test.sh
             """
+            codecov('apm-agent-go')
           }
         }
       }
@@ -227,6 +228,7 @@ pipeline {
             sh """#!/bin/bash
             ./scripts/jenkins/docker-test.sh
             """
+            codecov('apm-agent-go')
           }
         }
       }
@@ -236,6 +238,7 @@ pipeline {
       environment {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
         GOPATH = "${env.WORKSPACE}"
+        ELASTIC_DOCS = "${env.WORKSPACE}/elastic/docs"
       }
       
       when { 
@@ -248,9 +251,12 @@ pipeline {
       steps {
         withEnvWrapper() {
           unstash 'source'
+          dir("${ELASTIC_DOCS}"){
+            git "https://github.com/elastic/docs.git"
+          }
           dir("${BASE_DIR}"){    
             sh """#!/bin/bash
-            make doc
+            make docs
             """
           }
         }
