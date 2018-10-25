@@ -20,5 +20,6 @@ cat ${OUT_FILE} | go-junit-report > build/apm-agent-go-junit.xml
 gocov convert "${COV_FILE}" | gocov-html > build/coverage-apm-agent-go-report.html
 gocov convert "${COV_FILE}" | gocov-xml > build/coverage-apm-agent-go-report.xml
 
+cp ${OUT_FILE} build/codecov 
 cd build/codecov && bash <(curl -s https://codecov.io/bash)
 

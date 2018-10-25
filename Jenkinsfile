@@ -71,7 +71,8 @@ pipeline {
               
               github_enterprise_constructor()
               
-              currentBuild.changeSets.each{ change -> println change}
+              echo "Changeset :"
+              currentBuild.changeSets.each{changes -> changes.each{ change -> println change.toString()}}
 
               on_change{
                 echo "build cause a change (commit or PR)"
@@ -190,7 +191,7 @@ pipeline {
       when { 
         beforeAgent true
         allOf { 
-          branch 'master';
+          //branch 'master';
           environment name: 'bench_ci', value: 'true' 
         }
       }
@@ -215,7 +216,7 @@ pipeline {
       when { 
         beforeAgent true
         allOf { 
-          branch 'master';
+          //branch 'master';
           environment name: 'integration_test_ci', value: 'true' 
         }
       }
