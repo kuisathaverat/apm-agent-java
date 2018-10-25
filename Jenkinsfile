@@ -231,6 +231,31 @@ pipeline {
         }
       }
     }
+    stage('Documentation') { 
+      agent { label 'linux' }
+      environment {
+        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+        GOPATH = "${env.WORKSPACE}"
+      }
+      
+      when { 
+        beforeAgent true
+        allOf { 
+          //branch 'master';
+          environment name: 'doc_ci', value: 'true' 
+        }
+      }
+      steps {
+        withEnvWrapper() {
+          unstash 'source'
+          dir("${BASE_DIR}"){    
+            sh """#!/bin/bash
+            make doc
+            """
+          }
+        }
+      }
+    }
   }
   post {
     always { 
