@@ -252,7 +252,7 @@ pipeline {
             booleanParam(name: "java_Test", value: false),
             booleanParam(name: "ruby_Test", value: false),
             booleanParam(name: "python_Test", value: false),
-            booleanParam(name: "nodejs_Test", value: false),
+            booleanParam(name: "nodejs_Test", value: false)],
           wait: true,
           propagate: true)
       }
