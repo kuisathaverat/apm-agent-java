@@ -87,6 +87,7 @@ pipeline {
                   ${change.parentCommit}
                   ${change.paths}
                   ${change.authorOrCommitter}
+                  """
                   }
                 }
 
