@@ -126,171 +126,176 @@ pipeline {
         }
       }
     }
-    stage('test') { 
-      agent { label 'linux' }
-      environment {
-        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
-        GOPATH = "${env.WORKSPACE}"
-      }
-      
-      when { 
-        beforeAgent true
-        environment name: 'test_ci', value: 'true' 
-      }
-      steps {
-        withEnvWrapper() {
-          unstash 'source'
-          dir("${BASE_DIR}"){    
-            sh """#!/bin/bash
-            ./scripts/jenkins/test.sh
-            """
-            codecov('apm-agent-go')
+    stage('Parallel stages') {
+      failFast true
+      parallel {
+        stage('test') { 
+          agent { label 'linux' }
+          environment {
+            PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+            GOPATH = "${env.WORKSPACE}"
+          }
+          
+          when { 
+            beforeAgent true
+            environment name: 'test_ci', value: 'true' 
+          }
+          steps {
+            withEnvWrapper() {
+              unstash 'source'
+              dir("${BASE_DIR}"){    
+                sh """#!/bin/bash
+                ./scripts/jenkins/test.sh
+                """
+                codecov('apm-agent-go')
+              }
+            }
+          }
+          post { 
+            always { 
+              publishHTML(target: [
+                  allowMissing: true, 
+                  keepAll: true,
+                  reportDir: "${BASE_DIR}/build", 
+                  reportFiles: 'coverage-*-report.html', 
+                  reportName: 'coverage report', 
+                  reportTitles: 'Coverage'])
+              publishCoverage(adapters: [
+                coberturaAdapter("${BASE_DIR}/build/coverage-*-report.xml")], 
+                sourceFileResolver: sourceFiles('STORE_LAST_BUILD'))
+              cobertura(autoUpdateHealth: false, 
+                autoUpdateStability: false, 
+                coberturaReportFile: "${BASE_DIR}/build/coverage-*-report.xml", 
+                conditionalCoverageTargets: '70, 0, 0', 
+                failNoReports: false, 
+                failUnhealthy: false, 
+                failUnstable: false, 
+                lineCoverageTargets: '80, 0, 0', 
+                maxNumberOfBuilds: 0, 
+                methodCoverageTargets: '80, 0, 0', 
+                onlyStable: false, 
+                sourceEncoding: 'ASCII', 
+                zoomCoverageChart: false)
+              archiveArtifacts(allowEmptyArchive: true, 
+                artifacts: "${BASE_DIR}/build/junit-*.xml", 
+                onlyIfSuccessful: false)
+              junit(allowEmptyResults: true, 
+                keepLongStdio: true, 
+                testResults: "${BASE_DIR}/build/junit-*.xml")
+            }
+          }
+        }
+        stage('Benchmarks') { 
+          agent { label 'linux' }
+          environment {
+            PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+            GOPATH = "${env.WORKSPACE}"
+          }
+          
+          when { 
+            beforeAgent true
+            allOf { 
+              //branch 'master';
+              environment name: 'bench_ci', value: 'true' 
+            }
+          }
+          steps {
+            withEnvWrapper() {
+              unstash 'source'
+              dir("${BASE_DIR}"){    
+                sh """#!/bin/bash
+                ./scripts/jenkins/bench.sh
+                """
+              }
+            }
+          }
+        }
+        stage('Docker tests') { 
+          agent { label 'linux && docker' }
+          environment {
+            PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+            GOPATH = "${env.WORKSPACE}"
+          }
+          
+          when { 
+            beforeAgent true
+            allOf { 
+              //branch 'master';
+              environment name: 'integration_test_ci', value: 'true' 
+            }
+          }
+          steps {
+            withEnvWrapper() {
+              unstash 'source'
+              dir("${BASE_DIR}"){    
+                sh """#!/bin/bash
+                ./scripts/jenkins/docker-test.sh
+                """
+                codecov('apm-agent-go')
+              }
+            }
+          }
+        }
+        
+        /**
+         run Go integration test with the commit version on master branch.
+        */
+        stage('Integration test master') { 
+          agent { label 'linux' }
+          when { 
+            beforeAgent true
+            allOf { 
+              //branch 'master';
+              environment name: 'integration_test_master_ci', value: 'true' 
+            }
+          }
+          steps {
+            build(
+              job: 'apm-server-ci/apm-integration-test-axis-pipeline', 
+              parameters: [
+                string(name: 'BUILD_DESCRIPTION', value: "${BUILD_TAG}-INTEST"),
+                booleanParam(name: "go_Test", value: true),
+                booleanParam(name: "java_Test", value: false),
+                booleanParam(name: "ruby_Test", value: false),
+                booleanParam(name: "python_Test", value: false),
+                booleanParam(name: "nodejs_Test", value: false)],
+              wait: true,
+              propagate: true)
+          }
+        }
+        
+        /**
+         run Go integration test with the commit version on a PR.
+        */
+        stage('Integration test PR') { 
+          agent { label 'linux' }
+          when { 
+            beforeAgent true
+            allOf { 
+              not { branch 'master' };
+              environment name: 'integration_test_pr_ci', value: 'true' 
+            }
+          }
+          steps {
+            build(
+              job: 'apm-server-ci/apm-integration-test-pipeline', 
+              parameters: [
+                string(name: 'BUILD_DESCRIPTION', value: "${BUILD_TAG}-INTEST"),
+                string(name: 'APM_AGENT_GO_PKG', value: "${BUILD_TAG}"),
+                booleanParam(name: "go_Test", value: true),
+                booleanParam(name: "java_Test", value: false),
+                booleanParam(name: "ruby_Test", value: false),
+                booleanParam(name: "python_Test", value: false),
+                booleanParam(name: "nodejs_Test", value: false),
+                booleanParam(name: "kibana_Test", value: false),
+                booleanParam(name: "server_Test", value: false)],
+              wait: true,
+              propagate: true)
           }
         }
       }
-      post { 
-        always { 
-          publishHTML(target: [
-              allowMissing: true, 
-              keepAll: true,
-              reportDir: "${BASE_DIR}/build", 
-              reportFiles: 'coverage-*-report.html', 
-              reportName: 'coverage report', 
-              reportTitles: 'Coverage'])
-          publishCoverage(adapters: [
-            coberturaAdapter("${BASE_DIR}/build/coverage-*-report.xml")], 
-            sourceFileResolver: sourceFiles('STORE_LAST_BUILD'))
-          cobertura(autoUpdateHealth: false, 
-            autoUpdateStability: false, 
-            coberturaReportFile: "${BASE_DIR}/build/coverage-*-report.xml", 
-            conditionalCoverageTargets: '70, 0, 0', 
-            failNoReports: false, 
-            failUnhealthy: false, 
-            failUnstable: false, 
-            lineCoverageTargets: '80, 0, 0', 
-            maxNumberOfBuilds: 0, 
-            methodCoverageTargets: '80, 0, 0', 
-            onlyStable: false, 
-            sourceEncoding: 'ASCII', 
-            zoomCoverageChart: false)
-          archiveArtifacts(allowEmptyArchive: true, 
-            artifacts: "${BASE_DIR}/build/junit-*.xml", 
-            onlyIfSuccessful: false)
-          junit(allowEmptyResults: true, 
-            keepLongStdio: true, 
-            testResults: "${BASE_DIR}/build/junit-*.xml")
-        }
-      }
     }
-    stage('Benchmarks') { 
-      agent { label 'linux' }
-      environment {
-        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
-        GOPATH = "${env.WORKSPACE}"
-      }
-      
-      when { 
-        beforeAgent true
-        allOf { 
-          //branch 'master';
-          environment name: 'bench_ci', value: 'true' 
-        }
-      }
-      steps {
-        withEnvWrapper() {
-          unstash 'source'
-          dir("${BASE_DIR}"){    
-            sh """#!/bin/bash
-            ./scripts/jenkins/bench.sh
-            """
-          }
-        }
-      }
-    }
-    stage('Docker tests') { 
-      agent { label 'linux && docker' }
-      environment {
-        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
-        GOPATH = "${env.WORKSPACE}"
-      }
-      
-      when { 
-        beforeAgent true
-        allOf { 
-          //branch 'master';
-          environment name: 'integration_test_ci', value: 'true' 
-        }
-      }
-      steps {
-        withEnvWrapper() {
-          unstash 'source'
-          dir("${BASE_DIR}"){    
-            sh """#!/bin/bash
-            ./scripts/jenkins/docker-test.sh
-            """
-            codecov('apm-agent-go')
-          }
-        }
-      }
-    }
-    
-    /**
-     run Go integration test with the commit version on master branch.
-    */
-    stage('Integration test master') { 
-      agent { label 'linux' }
-      when { 
-        beforeAgent true
-        allOf { 
-          //branch 'master';
-          environment name: 'integration_test_master_ci', value: 'true' 
-        }
-      }
-      steps {
-        build(
-          job: 'apm-server-ci/apm-integration-test-axis-pipeline', 
-          parameters: [
-            string(name: 'BUILD_DESCRIPTION', value: "${BUILD_TAG}-INTEST"),
-            booleanParam(name: "go_Test", value: true),
-            booleanParam(name: "java_Test", value: false),
-            booleanParam(name: "ruby_Test", value: false),
-            booleanParam(name: "python_Test", value: false),
-            booleanParam(name: "nodejs_Test", value: false)],
-          wait: true,
-          propagate: true)
-      }
-    }
-    
-    /**
-     run Go integration test with the commit version on a PR.
-    */
-    stage('Integration test PR') { 
-      agent { label 'linux' }
-      when { 
-        beforeAgent true
-        allOf { 
-          not { branch 'master' };
-          environment name: 'integration_test_pr_ci', value: 'true' 
-        }
-      }
-      steps {
-        build(
-          job: 'apm-server-ci/apm-integration-test-pipeline', 
-          parameters: [
-            string(name: 'BUILD_DESCRIPTION', value: "${BUILD_TAG}-INTEST"),
-            string(name: 'APM_AGENT_GO_PKG', value: "${BUILD_TAG}"),
-            booleanParam(name: "go_Test", value: true),
-            booleanParam(name: "java_Test", value: false),
-            booleanParam(name: "ruby_Test", value: false),
-            booleanParam(name: "python_Test", value: false),
-            booleanParam(name: "nodejs_Test", value: false),
-            booleanParam(name: "kibana_Test", value: false),
-            booleanParam(name: "server_Test", value: false)],
-          wait: true,
-          propagate: true)
-      }
-    }
-    
+        
     stage('Documentation') { 
       agent { label 'linux' }
       environment {
