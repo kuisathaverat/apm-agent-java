@@ -72,25 +72,26 @@ pipeline {
               github_enterprise_constructor()
               
               echo "Changeset :"
-              currentBuild.changeSets.each{ changes -> 
-                changes.each{ change -> 
-                  println """
-                  ${change.committer}
-                  ${change.committerEmail}
-                  ${change.committerTime}
-                  ${change.author}
-                  ${change.authorEmail}
-                  ${change.authorTime}
-                  ${change.comment}
-                  ${change.title}
-                  ${change.id}
-                  ${change.parentCommit}
-                  ${change.paths}
-                  ${change.authorOrCommitter}
-                  """
+              script {
+                currentBuild.changeSets.each{ changes -> 
+                  changes.each{ change -> 
+                    println """
+                    ${change.committer}
+                    ${change.committerEmail}
+                    ${change.committerTime}
+                    ${change.author}
+                    ${change.authorEmail}
+                    ${change.authorTime}
+                    ${change.comment}
+                    ${change.title}
+                    ${change.id}
+                    ${change.parentCommit}
+                    ${change.paths}
+                    ${change.authorOrCommitter}
+                    """
+                    }
                   }
-                }
-
+              }
               on_change{
                 echo "build cause a change (commit or PR)"
               }
