@@ -161,7 +161,7 @@ pipeline {
               reportTitles: 'Coverage'])
           publishCoverage(adapters: [
             coberturaAdapter("${BASE_DIR}/build/coverage-*-report.xml")], 
-            sourceFileResolver: sourceFiles('STORE_ALL_BUILD'))
+            sourceFileResolver: sourceFiles('STORE_LAST_BUILD'))
           cobertura(autoUpdateHealth: false, 
             autoUpdateStability: false, 
             coberturaReportFile: "${BASE_DIR}/build/coverage-*-report.xml", 
@@ -261,6 +261,11 @@ pipeline {
             make docs
             """
           }
+        }
+      }
+      post{
+        success {
+          tar(file: "doc-files.tgz", archive: true, dir: "html", pathPrefix: "${BASE_DIR}/docs")
         }
       }
     }
