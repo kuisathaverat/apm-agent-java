@@ -27,14 +27,12 @@ pipeline {
     durabilityHint('PERFORMANCE_OPTIMIZED')
   }
   parameters {
-    string(name: 'branch_specifier', defaultValue: "", description: "the Git branch specifier to build (<branchName>, <tagName>, <commitId>, etc.)")
-    string(name: 'JOB_INTEGRATION_TEST_BRANCH_SPEC', defaultValue: "refs/heads/master", description: "the Git branch specifier to make the integrations test")
-    string(name: 'JOB_HEY_APM_TEST_BRANCH_SPEC', defaultValue: "refs/heads/master", description: "the Git branch specifier to make the Hey APM test")      
-    string(name: 'ELASTIC_STACK_VERSION', defaultValue: "6.4", description: "Elastic Stack version used for integration test (master, 6.3, 6.4, ...)")          
-    
+    string(name: 'branch_specifier', defaultValue: "", description: "the Git branch specifier to build (<branchName>, <tagName>, <commitId>, etc.)")    
     booleanParam(name: 'linux_ci', defaultValue: true, description: 'Enable Linux build')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'integration_test_ci', defaultValue: true, description: 'Enable run integgration test')
+    booleanParam(name: 'integration_test_pr_ci', defaultValue: true, description: 'Enable run integgration test')
+    booleanParam(name: 'integration_test_master_ci', defaultValue: true, description: 'Enable run integgration test')
     booleanParam(name: 'bench_ci', defaultValue: true, description: 'Enable benchmarks')
     booleanParam(name: 'doc_ci', defaultValue: true, description: 'Enable build documentation')
   }
@@ -235,6 +233,58 @@ pipeline {
         }
       }
     }
+    
+    /**
+     run Go integration test with the commit version on master branch.
+    */
+    stage('Integration test master') { 
+      agent { label 'linux' }
+      allOf { 
+        //branch 'master';
+        environment name: 'integration_test_master_ci', value: 'true' 
+      }
+      steps {
+        build(
+          job: 'apm-server-ci/apm-integration-test-axis-pipeline', 
+          parameters: [
+            string(name: 'BUILD_DESCRIPTION', value: "${BUILD_TAG}-INTEST"),
+            booleanParam(name: "go_Test", value: true),
+            booleanParam(name: "java_Test", value: false),
+            booleanParam(name: "ruby_Test", value: false),
+            booleanParam(name: "python_Test", value: false),
+            booleanParam(name: "nodejs_Test", value: false),
+          wait: true,
+          propagate: true)
+      }
+    }
+    
+    /**
+     run Go integration test with the commit version on a PR.
+    */
+    stage('Integration test PR') { 
+      agent { label 'linux' }
+      allOf { 
+        not { branch 'master' };
+        environment name: 'integration_test_pr_ci', value: 'true' 
+      }
+      steps {
+        build(
+          job: 'apm-server-ci/apm-integration-test-pipeline', 
+          parameters: [
+            string(name: 'BUILD_DESCRIPTION', value: "${BUILD_TAG}-INTEST"),
+            string(name: 'APM_AGENT_GO_PKG', value: "${BUILD_TAG}"),
+            booleanParam(name: "go_Test", value: true),
+            booleanParam(name: "java_Test", value: false),
+            booleanParam(name: "ruby_Test", value: false),
+            booleanParam(name: "python_Test", value: false),
+            booleanParam(name: "nodejs_Test", value: false),
+            booleanParam(name: "kibana_Test", value: false),
+            booleanParam(name: "server_Test", value: false)],
+          wait: true,
+          propagate: true)
+      }
+    }
+    
     stage('Documentation') { 
       agent { label 'linux' }
       environment {
