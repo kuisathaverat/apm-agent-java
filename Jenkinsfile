@@ -239,9 +239,12 @@ pipeline {
     */
     stage('Integration test master') { 
       agent { label 'linux' }
-      allOf { 
-        //branch 'master';
-        environment name: 'integration_test_master_ci', value: 'true' 
+      when { 
+        beforeAgent true
+        allOf { 
+          //branch 'master';
+          environment name: 'integration_test_master_ci', value: 'true' 
+        }
       }
       steps {
         build(
@@ -263,9 +266,12 @@ pipeline {
     */
     stage('Integration test PR') { 
       agent { label 'linux' }
-      allOf { 
-        not { branch 'master' };
-        environment name: 'integration_test_pr_ci', value: 'true' 
+      when { 
+        beforeAgent true
+        allOf { 
+          not { branch 'master' };
+          environment name: 'integration_test_pr_ci', value: 'true' 
+        }
       }
       steps {
         build(
