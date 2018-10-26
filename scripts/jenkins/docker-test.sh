@@ -1,18 +1,18 @@
 #!/bin/bash
-set -e
+set -ex
 export GOPATH=$WORKSPACE
 eval "$(gvm $GO_VERSION)"
 go get -v -u github.com/jstemmer/go-junit-report
 go get -v -u github.com/axw/gocov/gocov
-go get -v -u gopkg.in/matm/v1/gocov-html
+go get -v -u github.com/matm/gocov-html
 go get -v -u github.com/axw/gocov/...
 go get -v -u github.com/AlekSi/gocov-xml
 
-go get -v -t ./...
+go get -v -t ./... || echo "KO"
 
 export COV_FILE="build/coverage.cov"
 export OUT_FILE="build/test-report.out"
-mkdir -p build/codecov
+mkdir -p build
 
 ./scripts/docker-compose-testing up -d --build
 ./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage > ${COV_FILE}
