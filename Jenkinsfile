@@ -126,7 +126,7 @@ pipeline {
     stage('Parallel stages') {
       failFast true
       parallel {
-        stage('test') { 
+        stage('test') {
           agent { label 'linux' }
           environment {
             PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
@@ -179,7 +179,7 @@ pipeline {
             }
           }
         }
-        stage('Benchmarks') { 
+        stage('Benchmarks') {
           agent { label 'linux' }
           environment {
             PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
@@ -204,7 +204,7 @@ pipeline {
             }
           }
         }
-        stage('Docker tests') { 
+        stage('Docker tests') {
           agent { label 'linux && docker' }
           environment {
             PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
@@ -258,6 +258,7 @@ pipeline {
                 keepLongStdio: true, 
                 testResults: "${BASE_DIR}/build/junit-*.xml")
             }
+          }
         }
         
         /**
