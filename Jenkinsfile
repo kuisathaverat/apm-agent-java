@@ -173,9 +173,6 @@ pipeline {
                 onlyStable: false, 
                 sourceEncoding: 'ASCII', 
                 zoomCoverageChart: false)
-              archiveArtifacts(allowEmptyArchive: true, 
-                artifacts: "${BASE_DIR}/build/junit-*.xml", 
-                onlyIfSuccessful: false)
               junit(allowEmptyResults: true, 
                 keepLongStdio: true, 
                 testResults: "${BASE_DIR}/build/junit-*.xml")
@@ -232,6 +229,35 @@ pipeline {
               }
             }
           }
+          post { 
+            always { 
+              publishHTML(target: [
+                  allowMissing: true, 
+                  keepAll: true,
+                  reportDir: "${BASE_DIR}/build", 
+                  reportFiles: 'coverage-*-report.html', 
+                  reportName: 'coverage report', 
+                  reportTitles: 'Coverage'])
+              publishCoverage(adapters: [
+                coberturaAdapter("${BASE_DIR}/build/coverage-*-report.xml")], 
+                sourceFileResolver: sourceFiles('STORE_LAST_BUILD'))
+              cobertura(autoUpdateHealth: false, 
+                autoUpdateStability: false, 
+                coberturaReportFile: "${BASE_DIR}/build/coverage-*-report.xml", 
+                conditionalCoverageTargets: '70, 0, 0', 
+                failNoReports: false, 
+                failUnhealthy: false, 
+                failUnstable: false, 
+                lineCoverageTargets: '80, 0, 0', 
+                maxNumberOfBuilds: 0, 
+                methodCoverageTargets: '80, 0, 0', 
+                onlyStable: false, 
+                sourceEncoding: 'ASCII', 
+                zoomCoverageChart: false)
+              junit(allowEmptyResults: true, 
+                keepLongStdio: true, 
+                testResults: "${BASE_DIR}/build/junit-*.xml")
+            }
         }
         
         /**
