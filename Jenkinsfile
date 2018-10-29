@@ -76,18 +76,16 @@ pipeline {
                 currentBuild.changeSets.each{ changes -> 
                   changes.each{ change -> 
                     println """
-                    ${change.committer}
-                    ${change.committerEmail}
-                    ${change.committerTime}
-                    ${change.author}
-                    ${change.authorEmail}
-                    ${change.authorTime}
+                    ${change.getAuthorName()}
+                    ${change.getAuthorEmail()}
+                    ${change.getDate()}
+                    ${change.getAuthor()}
+                    ${change.getAuthorEmail()}
                     ${change.comment}
-                    ${change.title}
+                    ${change.getMsg()}
                     ${change.id}
                     ${change.parentCommit}
                     ${change.paths}
-                    ${change.authorOrCommitter}
                     """
                     }
                   }
