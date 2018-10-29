@@ -10,7 +10,7 @@ pipeline {
   agent any
   environment {
     HOME = "${env.HUDSON_HOME}"
-    BASE_DIR="src/github.com/elastic/apm-agent-go"
+    BASE_DIR="src/go.elastic.co/apm"
     JOB_GIT_CREDENTIALS = "f6c7695a-671e-4f4f-a331-acdce44ff9ba"
   }
   triggers {
@@ -126,7 +126,7 @@ pipeline {
       agent { label 'linux' }
       environment {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
-        GOPATH = "${env.WORKSPACE}"
+        GOPATH = "${env.WORKSPACE}/${BASE_DIR}"
       }
       
       when { 
@@ -138,7 +138,7 @@ pipeline {
           unstash 'source'
           dir("${BASE_DIR}"){    
             sh """#!/bin/bash
-            make install
+            make install check
             """
           }
         }
