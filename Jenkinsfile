@@ -105,7 +105,7 @@ pipeline {
       agent { label 'linux' }
       environment {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
-        GOPATH = "${env.WORKSPACE}/${BASE_DIR}"
+        GOPATH = "${env.WORKSPACE}"
       }
       
       when { 
